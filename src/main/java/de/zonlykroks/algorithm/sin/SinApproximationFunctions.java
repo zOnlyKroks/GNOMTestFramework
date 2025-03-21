@@ -7,9 +7,6 @@ import java.util.List;
 import java.util.function.DoubleUnaryOperator;
 
 public class SinApproximationFunctions extends ApproximationFunction {
-    private static final float TWO_PI = 6.28318530f;
-    private static final float PI = 3.14159265f;
-    private static final float HALF_PI = 1.57079632f;
     private static final double MATH_PI = Math.PI;
     private static final double MATH_TWO_PI = 2.0 * Math.PI;
     private static final double MATH_HALF_PI = Math.PI / 2.0;
@@ -54,76 +51,81 @@ public class SinApproximationFunctions extends ApproximationFunction {
     @Override
     public List<ApproximationAlgorithm> getApproximationAlgorithms() {
         return List.of(
-                new ApproximationAlgorithm("32-bit optimized sine approximation") {
+                new ApproximationAlgorithm("Piecewise 32-bit sine approximation") {
                     @Override
                     public DoubleUnaryOperator getFunction() {
                         return x -> {
+                            final float TWO_PI = 6.28318530f;
+                            final float PI = 3.14159265f;
+                            final float HALF_PI = 1.57079632f;
+
                             float xFloat = (float) x;
 
-                            int n = Math.round(xFloat / TWO_PI);
+                            float recipTwoPI = 1.0f / TWO_PI;
+                            int n = (int)(xFloat * recipTwoPI + (xFloat >= 0 ? 0.5f : -0.5f));
                             float xNormalized = xFloat - n * TWO_PI;
 
-                            if (xNormalized < 0.0f) {
-                                xNormalized = xNormalized + TWO_PI;
+                            if (Math.abs(xNormalized) < 1e-5f) {
+                                return xNormalized;
                             }
 
                             boolean negate = false;
+                            if (xNormalized < 0.0f) {
+                                xNormalized = -xNormalized;
+                                negate = true;
+                            }
+
                             if (xNormalized > PI) {
                                 xNormalized = TWO_PI - xNormalized;
-                                negate = true;
+                                negate = !negate;
                             }
 
                             if (xNormalized > HALF_PI) {
                                 xNormalized = PI - xNormalized;
                             }
 
-                            float xSquared = xNormalized * xNormalized;
+                            final float xSquared = xNormalized * xNormalized;
 
                             float result;
-                            if (xNormalized > 1.3f && xNormalized < 1.57f) {
+                            if (xNormalized < 0.5f) {
                                 result = xNormalized * (
-                                        1.0f -
-                                                (xSquared * (
-                                                        0.16666667f -
-                                                                (xSquared * (
-                                                                        0.00833333f -
-                                                                                (xSquared * (
-                                                                                        0.00019841f -
-                                                                                                (xSquared * (
-                                                                                                        0.00000276f -
-                                                                                                                (xSquared * 0.00000002f)
-                                                                                                ))
-                                                                                ))
-                                                                ))
-                                                ))
+                                        1.0f - xSquared * (
+                                                0.16666666f - xSquared * (
+                                                        0.00833333f - xSquared * 0.00019841f
+                                                )
+                                        )
+                                );
+                            } else if (xNormalized < 1.3f) {
+                                result = xNormalized * (
+                                        1.0f - xSquared * (
+                                                0.16666667f - xSquared * (
+                                                        0.00833333f - xSquared * (
+                                                                0.00019841f - xSquared * 0.00000276f
+                                                        )
+                                                )
+                                        )
                                 );
                             } else {
                                 result = xNormalized * (
-                                        1.0f -
-                                                (xSquared * (
-                                                        0.16666667f -
-                                                                (xSquared * (
-                                                                        0.00833333f -
-                                                                                (xSquared * (
-                                                                                        0.00019841f -
-                                                                                                (xSquared * 0.00000276f)
-                                                                                ))
-                                                                ))
-                                                ))
+                                        1.0f - xSquared * (
+                                                0.16666667f - xSquared * (
+                                                        0.00833333f - xSquared * (
+                                                                0.00019841f - xSquared * (
+                                                                        0.00000276f - xSquared * 0.00000002f
+                                                                )
+                                                        )
+                                                )
+                                        )
                                 );
                             }
 
-                            if (negate) {
-                                result = -result;
-                            }
-
-                            return result;
+                            return negate ? -result : result;
                         };
                     }
 
                     @Override
                     public String getName() {
-                        return "32-bit optimized sine approximation";
+                        return "Piecewise 32-bit sine approximation";
                     }
                 },
 
